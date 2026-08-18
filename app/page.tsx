@@ -38,6 +38,12 @@ type AgentResponse = {
   } | null;
 };
 
+type ApiError = {
+  error?: string;
+  detail?: string;
+  providerStatus?: number;
+};
+
 export default function Home() {
   const [channel, setChannel] = useState<Channel>("sms");
   const [request, setRequest] = useState("");
@@ -46,9 +52,19 @@ export default function Home() {
   const [result, setResult] = useState<AgentResponse | null>(null);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function showApiError(data: ApiError) {
+    const message = data?.detail
+      ? `${data.error || "خطا"}: ${data.detail}`
+      : data?.error || "در پردازش درخواست مشکلی پیش اومد.";
+
+    setErrorMessage(message);
+  }
 
   async function sendRequest(currentRequest = request) {
     setLoading(true);
+    setErrorMessage("");
 
     try {
       const response = await fetch("/api/agent", {
@@ -68,14 +84,14 @@ export default function Home() {
 
       if (!response.ok) {
         console.error("API Error:", data);
-        alert(data?.error || "در پردازش درخواست مشکلی پیش اومد.");
+        showApiError(data);
         return;
       }
 
       setResult(data);
     } catch (error) {
       console.error("Request Error:", error);
-      alert("در ارتباط با سرور مشکلی پیش اومد.");
+      setErrorMessage("در ارتباط با سرور مشکلی پیش اومد.");
     } finally {
       setLoading(false);
     }
@@ -100,6 +116,7 @@ export default function Home() {
     setHistory(updatedHistory);
     setAnswer("");
     setLoading(true);
+    setErrorMessage("");
 
     try {
       const response = await fetch("/api/agent", {
@@ -119,14 +136,14 @@ export default function Home() {
 
       if (!response.ok) {
         console.error("API Error:", data);
-        alert(data?.error || "در پردازش درخواست مشکلی پیش اومد.");
+        showApiError(data);
         return;
       }
 
       setResult(data);
     } catch (error) {
       console.error("Request Error:", error);
-      alert("در ارتباط با سرور مشکلی پیش اومد.");
+      setErrorMessage("در ارتباط با سرور مشکلی پیش اومد.");
     } finally {
       setLoading(false);
     }
@@ -146,6 +163,7 @@ export default function Home() {
     setHistory([]);
     setResult(null);
     setAnswer("");
+    setErrorMessage("");
   }
 
   return (
@@ -161,6 +179,22 @@ export default function Home() {
             اگر اطلاعاتی کم باشه، چند سؤال کوتاه ازت می‌پرسم.
           </p>
         </header>
+
+        {errorMessage && (
+          <div
+            style={{
+              background: "#fff1f2",
+              border: "1px solid #fecdd3",
+              color: "#9f1239",
+              padding: "14px 16px",
+              borderRadius: "12px",
+              marginBottom: "16px",
+              lineHeight: 1.9,
+            }}
+          >
+            <strong>خطا:</strong> {errorMessage}
+          </div>
+        )}
 
         {!result && (
           <section className="composer">

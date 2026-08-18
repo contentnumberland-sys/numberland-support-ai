@@ -15,8 +15,12 @@ export async function POST(req: NextRequest) {
 
     if (!request?.trim()) {
       return NextResponse.json(
-        { error: "request is required" },
-        { status: 400 }
+        {
+          error: "request is required",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
@@ -24,13 +28,17 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENROUTER_API_KEY is not configured" },
-        { status: 500 }
+        {
+          error: "OPENROUTER_API_KEY is not configured",
+        },
+        {
+          status: 500,
+        }
       );
     }
 
     const model =
-      process.env.OPENROUTER_MODEL ??
+      process.env.OPENROUTER_MODEL ||
       "google/gemini-2.5-flash";
 
     const userContext = `
@@ -47,18 +55,23 @@ ${internalNotes || "موردی ثبت نشده"}
 ${JSON.stringify(history, null, 2)}
 `;
 
-    const response = await fetch(
+    const openRouterResponse = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         method: "POST",
+
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           model,
+
           temperature: 0.25,
-max_tokens: 1200,
+
+          max_tokens: 1200,
+
           messages: [
             {
               role: "system",
@@ -72,6 +85,7 @@ max_tokens: 1200,
 
           response_format: {
             type: "json_schema",
+
             json_schema: {
               name: "numberland_support_agent",
               strict: true,
@@ -82,47 +96,109 @@ max_tokens: 1200,
       }
     );
 
-    if (!response.ok) {
-      const detail = await response.text();
+    if (!openRouterResponse.ok) {
+      const detail = await openRouterResponse.text();
 
-      console.error("OpenRouter error:", detail);
+      console.error(
+        "OpenRouter error:",
+        openRouterResponse.status,
+        detail
+      );
+
+      let readableDetail = detail;
+
+      try {
+        const parsedDetail = JSON.parse(detail);
+
+        readableDetail =
+          parsedDetail?.error?.message ||
+          parsedDetail?.message ||
+          detail;
+      } catch {
+        // detail همان متن خام باقی می‌ماند
+      }
 
       return NextResponse.json(
-        { error: "AI provider error" },
-        { status: 502 }
+        {
+          error: "AI provider error",
+          detail: readableDetail,
+          providerStatus: openRouterResponse.status,
+        },
+        {
+          status: 502,
+        }
       );
     }
 
-    const result = await response.json();
+    const result = await openRouterResponse.json();
 
     const content =
       result?.choices?.[0]?.message?.content;
 
     if (!content) {
+      console.error(
+        "OpenRouter returned empty content:",
+        result
+      );
+
       return NextResponse.json(
-        { error: "Empty AI response" },
-        { status: 502 }
+        {
+          error: "Empty AI response",
+          detail:
+            "مدل پاسخی برای پردازش برنگرداند.",
+        },
+        {
+          status: 502,
+        }
       );
     }
 
     let parsed;
 
     try {
-      parsed = JSON.parse(content);
-    } catch {
+      parsed =
+        typeof content === "string"
+          ? JSON.parse(content)
+          : content;
+    } catch (error) {
+      console.error(
+        "Invalid AI JSON response:",
+        content,
+        error
+      );
+
       return NextResponse.json(
-        { error: "Invalid AI response" },
-        { status: 502 }
+        {
+          error: "Invalid AI response",
+          detail:
+            "پاسخ مدل JSON معتبر نبود.",
+        },
+        {
+          status: 502,
+        }
       );
     }
 
     return NextResponse.json(parsed);
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Agent route unexpected error:",
+      error
+    );
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unknown server error";
 
     return NextResponse.json(
-      { error: "Unexpected server error" },
-      { status: 500 }
+      {
+        error: "Unexpected server error",
+        detail: message,
+      },
+      {
+        status: 500,
+      }
     );
   }
 }
