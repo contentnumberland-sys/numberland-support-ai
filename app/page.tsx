@@ -65,8 +65,16 @@ export default function Home() {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error:", data);
+        alert(data?.error || "در پردازش درخواست مشکلی پیش اومد.");
+        return;
+      }
+
       setResult(data);
-    } catch {
+    } catch (error) {
+      console.error("Request Error:", error);
       alert("در ارتباط با سرور مشکلی پیش اومد.");
     } finally {
       setLoading(false);
@@ -108,8 +116,16 @@ export default function Home() {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error:", data);
+        alert(data?.error || "در پردازش درخواست مشکلی پیش اومد.");
+        return;
+      }
+
       setResult(data);
-    } catch {
+    } catch (error) {
+      console.error("Request Error:", error);
       alert("در ارتباط با سرور مشکلی پیش اومد.");
     } finally {
       setLoading(false);
